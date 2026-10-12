@@ -2,7 +2,7 @@ from datetime import date
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, joinedload
 
 from app import models
@@ -24,12 +24,15 @@ from app.schemas import (
     LeadRead,
     LeadUpdate,
     LoginRequest,
+    SlotHoldCreate,
+    SlotHoldRead,
     TokenResponse,
 )
 from app.security import create_token, require_admin, verify_password
 from app.seed import seed_demo_data
 from app.services import (
     create_appointment,
+    create_slot_hold,
     get_appointment_or_404,
     get_default_clinic,
     list_slots,
@@ -49,9 +52,20 @@ app.add_middleware(
 )
 
 
+def ensure_runtime_schema() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+    with engine.begin() as connection:
+        columns = [row[1] for row in connection.execute(text("PRAGMA table_info(slot_holds)"))]
+        if "queue_position" not in columns:
+            connection.execute(text("ALTER TABLE slot_holds ADD COLUMN queue_position INTEGER NOT NULL DEFAULT 1"))
+        connection.execute(text("DROP INDEX IF EXISTS uq_active_slot_hold"))
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema()
     with Session(engine) as db:
         seed_demo_data(db)
 
@@ -90,6 +104,11 @@ def doctor_detail(doctor_id: str, db: Session = Depends(get_db)) -> models.Docto
 @app.get("/slots")
 def slots(doctor_id: str, date_: date = Query(alias="date"), db: Session = Depends(get_db)) -> dict:
     return {"doctor_id": doctor_id, "date": date_, "slots": list_slots(db, doctor_id, date_)}
+
+
+@app.post("/slot-holds", response_model=SlotHoldRead)
+def slot_hold_create(payload: SlotHoldCreate, db: Session = Depends(get_db)) -> models.SlotHold:
+    return create_slot_hold(db, payload)
 
 
 @app.get("/appointments", response_model=list[AppointmentRead])

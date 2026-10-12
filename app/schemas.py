@@ -49,6 +49,7 @@ class AppointmentCreate(BaseModel):
     date: Date
     time: Time
     source: str = "manual"
+    slot_hold_id: str | None = None
 
 
 class AppointmentUpdate(BaseModel):
@@ -78,6 +79,28 @@ class AppointmentSuccess(BaseModel):
     appointment_id: str
     reference: str
     status: str
+
+
+class SlotHoldCreate(BaseModel):
+    doctor_id: str
+    date: Date
+    time: Time
+    source: str = "web_chat"
+    session_id: str | None = None
+
+
+class SlotHoldRead(BaseModel):
+    id: str
+    doctor_id: str
+    appointment_date: Date
+    appointment_time: Time
+    status: str
+    source: str
+    session_id: str | None
+    queue_position: int
+    expires_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeadCreate(BaseModel):

@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     frontend_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     demo_admin_email: str = "reception@clienxo.demo"
     demo_admin_password: str = "demo12345"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_timeout_seconds: float = 8.0
+    slot_hold_minutes: int = 5
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

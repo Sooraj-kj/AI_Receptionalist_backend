@@ -94,6 +94,25 @@ class Appointment(Base):
     patient: Mapped[Patient] = relationship()
 
 
+class SlotHold(Base):
+    __tablename__ = "slot_holds"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: new_id("hold"))
+    clinic_id: Mapped[str] = mapped_column(ForeignKey("clinics.id"), nullable=False)
+    doctor_id: Mapped[str] = mapped_column(ForeignKey("doctors.id"), nullable=False)
+    appointment_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    appointment_time: Mapped[time] = mapped_column(Time, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="active", index=True)
+    source: Mapped[str] = mapped_column(String(80), default="web_chat")
+    session_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    queue_position: Mapped[int] = mapped_column(Integer, default=1)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    clinic: Mapped[Clinic] = relationship()
+    doctor: Mapped[Doctor] = relationship()
+
+
 Index(
     "uq_active_doctor_slot",
     Appointment.doctor_id,
@@ -102,6 +121,26 @@ Index(
     unique=True,
     sqlite_where=Appointment.status.in_(["confirmed", "pending"]),
     postgresql_where=Appointment.status.in_(["confirmed", "pending"]),
+)
+
+Index(
+    "uq_active_session_slot_hold",
+    SlotHold.doctor_id,
+    SlotHold.appointment_date,
+    SlotHold.appointment_time,
+    SlotHold.session_id,
+    unique=True,
+    sqlite_where=(SlotHold.status == "active") & (SlotHold.session_id.is_not(None)),
+    postgresql_where=(SlotHold.status == "active") & (SlotHold.session_id.is_not(None)),
+)
+
+Index(
+    "ix_active_slot_hold_queue",
+    SlotHold.doctor_id,
+    SlotHold.appointment_date,
+    SlotHold.appointment_time,
+    SlotHold.status,
+    SlotHold.queue_position,
 )
 
 
